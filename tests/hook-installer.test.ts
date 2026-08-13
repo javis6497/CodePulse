@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { installActivityHook, isActivityHookInstalled } from '../src/main/services/hook-installer'
+import { installActivityHook, isActivityHookInstalled, isActivityHookMigrationNeeded } from '../src/main/services/hook-installer'
 
 describe('installActivityHook', () => {
   it('preserves existing hooks and adds CodePulse once per event', async () => {
@@ -15,8 +15,10 @@ describe('installActivityHook', () => {
       SessionStart: [{ hooks: [{ type: 'command', command: 'old-codepulse', statusMessage: 'CodePulse activity monitor', async: true }] }]
     } }), 'utf8')
 
-    await installActivityHook({ codexHome, executablePath, token: 'a'.repeat(64) })
-    await installActivityHook({ codexHome, executablePath, token: 'a'.repeat(64) })
+    expect(await isActivityHookMigrationNeeded(codexHome)).toBe(true)
+    const first = await installActivityHook({ codexHome, executablePath, token: 'a'.repeat(64) })
+    const afterFirstInstall = await readFile(join(codexHome, 'hooks.json'), 'utf8')
+    const second = await installActivityHook({ codexHome, executablePath, token: 'a'.repeat(64) })
 
     const document = JSON.parse(await readFile(join(codexHome, 'hooks.json'), 'utf8'))
     expect(document.hooks.Stop).toHaveLength(2)
@@ -26,5 +28,13 @@ describe('installActivityHook', () => {
     expect(document.hooks.SessionStart[0].hooks[0].commandWindows).not.toContain('powershell')
     expect(document.hooks.SessionStart[0].hooks[0]).not.toHaveProperty('async')
     expect(await isActivityHookInstalled(codexHome)).toBe(true)
+    expect(await isActivityHookMigrationNeeded(codexHome)).toBe(false)
+    expect(await isActivityHookMigrationNeeded(codexHome, executablePath)).toBe(false)
+    expect(await isActivityHookMigrationNeeded(codexHome, 'C:\\Users\\Example\\AppData\\Roaming\\CodePulse\\hooks\\CodePulseHook.exe')).toBe(true)
+    expect(first.requiresTrust).toBe(true)
+    expect(second).toMatchObject({ installed: true, requiresTrust: false })
+    expect(second.backupPath).toBeUndefined()
+    expect(await readFile(join(codexHome, 'hooks.json'), 'utf8')).toBe(afterFirstInstall)
+    expect((await readdir(codexHome)).filter((name) => name.startsWith('hooks.codepulse-backup-'))).toHaveLength(1)
   })
 })

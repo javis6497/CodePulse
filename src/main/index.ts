@@ -1,14 +1,14 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { request } from 'node:http'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { ActivitySession, WindowKind, WindowMode } from '../shared/contracts'
 import { HistoryDatabase } from './services/database'
 import { hasNewCompletion } from './services/completion-sound'
-import { installActivityHook, isActivityHookInstalled } from './services/hook-installer'
+import { installActivityHook, isActivityHookInstalled, isActivityHookMigrationNeeded } from './services/hook-installer'
 import { MonitorService } from './services/monitor-service'
 
 let mainWindow: BrowserWindow | undefined
@@ -255,16 +255,27 @@ async function forwardActivityHook(): Promise<void> {
   })
 }
 
-function hookHelperPath(): string {
+function bundledHookHelperPath(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'hooks', 'CodePulseHook.exe')
     : join(app.getAppPath(), 'resources', 'hooks', 'CodePulseHook.exe')
 }
 
+function hookHelperPath(): string {
+  return join(app.getPath('userData'), 'hooks', 'CodePulseHook.exe')
+}
+
+async function prepareHookHelper(): Promise<string> {
+  const helperPath = hookHelperPath()
+  await mkdir(join(app.getPath('userData'), 'hooks'), { recursive: true })
+  await copyFile(bundledHookHelperPath(), helperPath)
+  return helperPath
+}
+
 async function installHooks(): Promise<import('../shared/contracts').HookInstallResult> {
   if (!monitor) throw new Error('Monitor is not ready')
   const common = {
-    executablePath: hookHelperPath(),
+    executablePath: await prepareHookHelper(),
     token: monitor.getActivityToken()
   }
   const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), '.codex')
@@ -350,9 +361,13 @@ if (process.argv.includes('--activity-hook')) {
     })
     monitor.start()
     const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), '.codex')
-    void isActivityHookInstalled(codexHome).then((installed) => {
+    const expectedHelperPath = hookHelperPath()
+    void Promise.all([
+      isActivityHookInstalled(codexHome),
+      isActivityHookMigrationNeeded(codexHome, expectedHelperPath)
+    ]).then(([installed, migrationNeeded]) => {
       monitor?.setActivityHookInstalled(installed)
-      if (installed) void installHooks()
+      if (migrationNeeded || (installed && !existsSync(expectedHelperPath))) void installHooks()
     })
   })
 }

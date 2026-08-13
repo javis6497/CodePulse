@@ -14,6 +14,7 @@ interface HookHandler {
   commandWindows?: string
   statusMessage?: string
   timeout?: number
+  async?: boolean
 }
 
 interface HookGroup {
@@ -45,6 +46,22 @@ export async function isActivityHookInstalled(codexHome: string): Promise<boolea
   try {
     const document = JSON.parse(await readFile(join(codexHome, 'hooks.json'), 'utf8')) as HooksDocument
     return Object.values(document.hooks || {}).some((groups) => groups.some(isCodePulseGroup))
+  } catch {
+    return false
+  }
+}
+
+export async function isActivityHookMigrationNeeded(codexHome: string, expectedExecutablePath?: string): Promise<boolean> {
+  try {
+    const document = JSON.parse(await readFile(join(codexHome, 'hooks.json'), 'utf8')) as HooksDocument
+    return Object.values(document.hooks || {}).some((groups) => groups.some((group) =>
+      group.hooks?.some((handler) => handler.statusMessage === MARKER && (
+        handler.async !== undefined ||
+        handler.command?.includes('--activity-hook') ||
+        handler.commandWindows?.includes('--activity-hook') ||
+        (expectedExecutablePath !== undefined && !handler.commandWindows?.toLowerCase().includes(expectedExecutablePath.toLowerCase()))
+      ))
+    ))
   } catch {
     return false
   }

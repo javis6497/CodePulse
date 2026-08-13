@@ -1,87 +1,105 @@
 # CodePulse
 
-CodePulse 是面向 Windows 10/11 的本地 AI 编程监控应用，聚焦 Codex 与 Claude Code。
+CodePulse is a local Windows 10/11 monitoring companion for Codex and Claude Code.
 
-当前版本：`0.1.5`
+Current version: `0.1.6`
 
-## 功能
+## Features
 
-- Codex 与 Claude Code 今日、本周、累计 Token 精确统计
-- Codex 动态额度窗口与重置时间
-- 52 周 GitHub Contributions 风格 Token 热力图
-- Codex 实时任务状态、工具调用、等待批准与完成提示音
-- Windows 与 WSL 用量区分
-- Dashboard、灵动岛和独立 Codex 状态窗口
-- 系统托盘后台运行与右键退出
-- 中英文切换、深色与浅色液态玻璃主题
-- SQLite 本地历史归档
-- NSIS 安装版与 Portable 便携版
+- Exact daily, weekly, and lifetime token usage for Codex and Claude Code
+- Codex dynamic quota windows and reset times
+- A 52-week GitHub Contributions-style token heatmap
+- Live Codex task states, tool activity, approval waits, and completion sounds
+- Separate usage totals for Windows and running WSL distributions
+- Full dashboard, Dynamic Island-style compact view, and standalone Codex status window
+- Background operation through the Windows system tray, including a right-click exit action
+- Chinese and English UI languages
+- Dark and light liquid-glass themes
+- Local SQLite history storage
+- NSIS installer and portable Windows builds
 
-CodePulse 的后台采集和 Hook Helper 均隐藏终端窗口，不会在刷新或任务运行期间弹出 PowerShell。
+CodePulse runs its collectors and native Hook Helper without opening PowerShell or terminal windows.
 
-## 安装
+## Privacy
 
-Windows 安装包和便携版可通过 GitHub Releases 分发，也可以在本地执行：
+CodePulse does not scrape web pages, read browser cookies, copy Codex credentials, or store chat content. Account requests are performed by the local Codex App Server.
+
+The activity Hook sends only the event name, session identifier, project directory, tool name, and runtime metadata to an authenticated loopback receiver at `127.0.0.1`. It does not send prompts or tool arguments.
+
+Application data is stored locally in:
+
+```text
+%APPDATA%\CodePulse\
+```
+
+The `codepulse.db` database contains aggregate usage, session indexes, activity metadata, and quota snapshots only.
+
+## Installation
+
+Windows installers and portable builds can be distributed through GitHub Releases. To build them locally:
 
 ```powershell
 npm.cmd install
 npm.cmd run dist:win
 ```
 
-构建产物写入 `dist/`。当前本地发布产物保存在 `release-0.1.5/`，该目录不会提交到源码仓库。
+Build artifacts are written to `dist/` and are intentionally excluded from the source repository.
 
-首次启用 Codex 实时状态后，需要完整重启 Codex，并在 Codex 中输入 `/hooks`，信任 `CodePulse activity monitor`。
+## Codex live activity setup
 
-CodePulse 不抓取网页、不读取浏览器 Cookie，也不复制或保存 Codex 登录凭据。账户请求由本机 Codex App Server 完成。
+1. Start CodePulse.
+2. Open **Settings** and select **Enable live status**.
+3. Fully restart Codex.
+4. Run `/hooks` in Codex and trust `CodePulse activity monitor` when prompted.
 
-## 开发
+CodePulse installs its native Helper at the stable `%APPDATA%\CodePulse\hooks\CodePulseHook.exe` path. It does not rewrite a current Hook configuration or replace the Helper during normal startup. It performs an automatic update only when it detects a legacy CodePulse Hook, the unsupported `async` field, or an old installation-dependent Helper path. A current Hook therefore keeps the same trust identity across subsequent launches.
 
-要求 Windows 10/11、Node.js 22.13 或更高版本。
+Codex intentionally requires renewed trust when the Hook command itself changes. See the [official OpenAI Hooks documentation](https://learn.chatgpt.com/docs/hooks).
+
+## Development
+
+Requirements:
+
+- Windows 10 or Windows 11
+- Node.js 22.13 or later
+- The Windows .NET Framework C# compiler included with Windows
+
+Install dependencies and start the development build:
 
 ```powershell
 npm.cmd install
 npm.cmd run dev
 ```
 
-验证：
+Run type checks, tests, and a production build:
 
 ```powershell
 npm.cmd run verify
 ```
 
-生成 Windows 安装包和便携版：
+Create the NSIS installer and portable build:
 
 ```powershell
 npm.cmd run dist:win
 ```
 
-## 数据位置
+## Data sources
 
-应用数据默认保存在：
+- Codex quota and account usage: Codex App Server JSON-RPC
+- Codex and Claude local usage: `tokscale`
+- WSL: only currently running distributions are discovered and scanned; CodePulse does not start stopped distributions
+- Live activity: authenticated Codex command Hooks delivered to a local loopback receiver
 
-```text
-%APPDATA%\CodePulse\
-```
-
-其中 `codepulse.db` 只保存聚合用量、会话索引、活动元数据和配额快照，不保存聊天正文或认证令牌。
-
-## 数据源
-
-- Codex quota / account usage：Codex App Server JSON-RPC
-- Codex / Claude local usage：tokscale
-- WSL：只发现并扫描当前正在运行的发行版，不会自动启动已停止的 WSL
-- Activity：本地回环地址上的认证 Hook 接收端
-
-## 项目结构
+## Project structure
 
 ```text
-resources/hooks/   Windows 无窗口 Hook Helper 源码
-scripts/           构建脚本
-src/main/          Electron 主进程与本地服务
-src/preload/       安全 IPC 桥接
-src/renderer/      React 界面
-src/shared/        共享类型和默认值
-tests/             Vitest 测试
+resources/hooks/   Native no-console Windows Hook Helper source
+scripts/           Build scripts
+src/main/          Electron main process and local services
+src/preload/       Secure IPC bridge
+src/renderer/      React user interface
+src/shared/        Shared contracts and defaults
+tests/             Vitest test suite
 ```
 
-详细目标和架构见 [CodePulse_技术方案.md](./CodePulse_技术方案.md)。
+The original design goals and architecture notes are available in [CodePulse_技术方案.md](./CodePulse_技术方案.md).
