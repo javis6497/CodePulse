@@ -1,0 +1,12 @@
+node_modules/
+out/
+dist/
+release-*/
+.vite/
+*.log
+coverage/
+.npm-cache/
+resources/hooks/CodePulseHook.exe
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,91 @@
+{
+  "name": "codepulse",
+  "productName": "CodePulse",
+  "version": "0.1.5",
+  "description": "Windows companion for Codex and Claude Code usage, quota, and activity.",
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "npm run build:hook && electron-vite dev",
+    "build:hook": "node scripts/build-hook-helper.mjs",
+    "build": "npm run build:hook && electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "npm run build:hook && vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm test && npm run build",
+    "dist:win": "npm run build && electron-builder --win --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.javis.codepulse",
+    "productName": "CodePulse",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*",
+      "!resources/hooks/CodePulseHook.exe",
+      "!resources/hooks/CodePulseHook.cs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/hooks/CodePulseHook.exe",
+        "to": "hooks/CodePulseHook.exe"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/@tokscale/**/*",
+      "node_modules/tokscale/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "CodePulse-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "CodePulse-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "CodePulse-Portable-${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "chokidar": "^5.0.0",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tokscale": "^4.13.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.0.4",
+    "electron": "43.3.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  }
+}
