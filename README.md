@@ -2,14 +2,15 @@
 
 CodePulse is a local Windows 10/11 monitoring companion for Codex and Claude Code.
 
-Current version: `0.1.6`
+Current version: `0.1.7`
 
 ## Features
 
 - Exact daily, weekly, and lifetime token usage for Codex and Claude Code
 - Codex dynamic quota windows and reset times
 - A 52-week GitHub Contributions-style token heatmap
-- Live Codex task states, tool activity, approval waits, and completion sounds
+- Live Codex task states for the Windows desktop app, PowerShell CLI, and WSL CLI
+- Stable start-order display for parallel Codex tasks, including tool activity, approval waits, and completion sounds
 - Separate usage totals for Windows and running WSL distributions
 - Full dashboard, Dynamic Island-style compact view, and standalone Codex status window
 - Background operation through the Windows system tray, including a right-click exit action
@@ -24,7 +25,7 @@ CodePulse runs its collectors and native Hook Helper without opening PowerShell 
 
 CodePulse does not scrape web pages, read browser cookies, copy Codex credentials, or store chat content. Account requests are performed by the local Codex App Server.
 
-The activity Hook sends only the event name, session identifier, project directory, tool name, and runtime metadata to an authenticated loopback receiver at `127.0.0.1`. It does not send prompts or tool arguments.
+The activity Hook keeps only the event name, session identifier, project directory, tool name, and runtime metadata. Windows events use an authenticated loopback receiver at `127.0.0.1`; WSL events use a signed local inbox under the CodePulse application data directory. Prompts, tool arguments, and assistant messages are not forwarded or stored.
 
 Application data is stored locally in:
 
@@ -53,6 +54,8 @@ Build artifacts are written to `dist/` and are intentionally excluded from the s
 4. Run `/hooks` in Codex and trust `CodePulse activity monitor` when prompted.
 
 CodePulse installs its native Helper at the stable `%APPDATA%\CodePulse\hooks\CodePulseHook.exe` path. It does not rewrite a current Hook configuration or replace the Helper during normal startup. It performs an automatic update only when it detects a legacy CodePulse Hook, the unsupported `async` field, or an old installation-dependent Helper path. A current Hook therefore keeps the same trust identity across subsequent launches.
+
+The Windows user Hook covers both the Codex desktop app and Codex CLI launched from PowerShell. CodePulse also configures a Python Helper for every running WSL distribution it discovers. Run `/hooks` once inside each WSL distribution to trust its local CodePulse Hook.
 
 Codex intentionally requires renewed trust when the Hook command itself changes. See the [official OpenAI Hooks documentation](https://learn.chatgpt.com/docs/hooks).
 

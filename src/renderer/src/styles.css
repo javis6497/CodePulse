@@ -111,8 +111,9 @@ nav button.active svg { color: #88d7ff; filter: drop-shadow(0 0 8px rgba(100,203
 
 .activity-card { margin-top: 12px; }
 .text-button { border: 0; background: transparent; color: #8c9099; font-size: 11px; display: flex; align-items: center; cursor: pointer; }
-.activity-row { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 9px; padding: 12px 3px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.activity-row { display: grid; grid-template-columns: 20px 30px 1fr auto; align-items: center; gap: 9px; padding: 12px 3px; border-bottom: 1px solid rgba(255,255,255,.05); }
 .activity-row:last-child { border-bottom: 0; padding-bottom: 2px; }
+.activity-order { color: #696e78; font-size: 11px; font-variant-numeric: tabular-nums; text-align: center; }
 .activity-orb { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #79808c, #292c32 55%, #15171b); box-shadow: inset 0 1px 2px rgba(255,255,255,.2), 0 0 12px rgba(255,255,255,.04); }
 .activity-orb span { width: 7px; height: 7px; border-radius: 50%; background: #a9adb5; }
 .activity-orb.live { background: radial-gradient(circle at 30% 20%, #d8ff9b, #72be40 48%, #1e351f); box-shadow: 0 0 18px rgba(151,231,81,.2); }.activity-orb.live span { background: #e6ffbd; animation: pulse 1.8s ease-in-out infinite; }

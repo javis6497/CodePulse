@@ -41,23 +41,41 @@ function hasTrackedData(home: string): boolean {
   return DATA_MARKERS.some((marker) => existsSync(`${home}\\${marker.replaceAll('/', '\\')}`))
 }
 
+function primaryHome(distro: string): string | undefined {
+  try {
+    const linuxHome = run('wsl.exe', ['--distribution', distro, '--exec', 'sh', '-lc', 'printf %s "$HOME"'])
+      .replace(/\0/g, '')
+      .trim()
+    if (!linuxHome.startsWith('/')) return undefined
+    for (const prefix of [`\\\\wsl.localhost\\${distro}`, `\\\\wsl$\\${distro}`]) {
+      const home = `${prefix}${linuxHome.replaceAll('/', '\\')}`
+      if (existsSync(home)) return home
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
 export function discoverWslRuntimes(): WslRuntime[] {
   return listRunningWslDistros().map((distro) => {
-    const homePaths: string[] = []
+    const homePaths = new Set<string>()
+    const home = primaryHome(distro)
+    if (home) homePaths.add(home)
     for (const prefix of [`\\\\wsl.localhost\\${distro}`, `\\\\wsl$\\${distro}`]) {
       const homeRoot = `${prefix}\\home`
       try {
         for (const user of readdirSync(homeRoot)) {
-          const home = `${homeRoot}\\${user}`
-          if (hasTrackedData(home)) homePaths.push(home)
+          const candidate = `${homeRoot}\\${user}`
+          if (hasTrackedData(candidate)) homePaths.add(candidate)
         }
       } catch {
         // Try the compatible UNC prefix below.
       }
       const rootHome = `${prefix}\\root`
-      if (hasTrackedData(rootHome)) homePaths.push(rootHome)
-      if (homePaths.length) break
+      if (hasTrackedData(rootHome)) homePaths.add(rootHome)
+      if (homePaths.size) break
     }
-    return { distro, homePaths, running: true }
+    return { distro, homePaths: [...homePaths], running: true }
   })
 }

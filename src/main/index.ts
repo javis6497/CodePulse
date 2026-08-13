@@ -21,6 +21,9 @@ let history: HistoryDatabase | undefined
 let screenshotSaved = false
 let currentWindowMode: WindowMode = 'dashboard'
 let completionSoundEnabled = true
+let hookSyncEnabled = false
+let syncingWslHooks = false
+const syncedWslHomes = new Set<string>()
 const activityStates = new Map<string, ActivitySession['state']>()
 
 const WINDOW_MODES: WindowMode[] = ['dashboard', 'island', 'status', 'compact']
@@ -261,14 +264,31 @@ function bundledHookHelperPath(): string {
     : join(app.getAppPath(), 'resources', 'hooks', 'CodePulseHook.exe')
 }
 
+function bundledWslHookHelperPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'hooks', 'CodePulseHook.py')
+    : join(app.getAppPath(), 'resources', 'hooks', 'CodePulseHook.py')
+}
+
 function hookHelperPath(): string {
   return join(app.getPath('userData'), 'hooks', 'CodePulseHook.exe')
+}
+
+function wslHookHelperPath(): string {
+  return join(app.getPath('userData'), 'hooks', 'CodePulseHook.py')
+}
+
+function activityInboxPath(): string {
+  return join(app.getPath('userData'), 'activity-inbox')
 }
 
 async function prepareHookHelper(): Promise<string> {
   const helperPath = hookHelperPath()
   await mkdir(join(app.getPath('userData'), 'hooks'), { recursive: true })
-  await copyFile(bundledHookHelperPath(), helperPath)
+  await Promise.all([
+    copyFile(bundledHookHelperPath(), helperPath),
+    copyFile(bundledWslHookHelperPath(), wslHookHelperPath())
+  ])
   return helperPath
 }
 
@@ -280,13 +300,39 @@ async function installHooks(): Promise<import('../shared/contracts').HookInstall
   }
   const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), '.codex')
   const result = await installActivityHook({ codexHome, ...common })
-  for (const runtime of monitor.getSnapshot().wslRuntimes) {
-    for (const home of runtime.homePaths) {
-      await installActivityHook({ codexHome: join(home, '.codex'), ...common, runtime: 'wsl', distro: runtime.distro })
-    }
-  }
+  hookSyncEnabled = true
+  const wslRequiresTrust = await syncWslHooks(common)
   monitor.setActivityHookInstalled(true)
-  return result
+  return { ...result, requiresTrust: result.requiresTrust || wslRequiresTrust }
+}
+
+async function syncWslHooks(common?: { executablePath: string; token: string }): Promise<boolean> {
+  if (!monitor || syncingWslHooks) return false
+  const executablePath = common?.executablePath || hookHelperPath()
+  if (!existsSync(executablePath) || !existsSync(wslHookHelperPath())) return false
+  syncingWslHooks = true
+  let requiresTrust = false
+  try {
+    const options = common || { executablePath, token: monitor.getActivityToken() }
+    for (const runtime of monitor.getSnapshot().wslRuntimes) {
+      for (const home of runtime.homePaths) {
+        if (syncedWslHomes.has(home)) continue
+        const result = await installActivityHook({
+          codexHome: join(home, '.codex'),
+          ...options,
+          runtime: 'wsl',
+          distro: runtime.distro,
+          wslExecutablePath: wslHookHelperPath(),
+          wslInboxPath: activityInboxPath()
+        })
+        requiresTrust ||= result.requiresTrust
+        syncedWslHomes.add(home)
+      }
+    }
+  } finally {
+    syncingWslHooks = false
+  }
+  return requiresTrust
 }
 
 function registerIpc(): void {
@@ -344,7 +390,7 @@ if (process.argv.includes('--activity-hook')) {
     app.setAppUserModelId('com.javis.codepulse')
     currentWindowMode = process.env.CODEPULSE_SCREENSHOT_PATH ? 'dashboard' : loadWindowMode()
     completionSoundEnabled = loadCompletionSound()
-    monitor = new MonitorService(loadActivityToken())
+    monitor = new MonitorService(loadActivityToken(), activityInboxPath())
     history = new HistoryDatabase(join(app.getPath('userData'), 'codepulse.db'))
     registerIpc()
     tray = createTray()
@@ -358,6 +404,7 @@ if (process.argv.includes('--activity-hook')) {
       if (mainWindow && snapshot.health.lastUpdatedAt) saveAcceptanceScreenshot(mainWindow)
       const active = snapshot.activities.find((activity: ActivitySession) => !['idle', 'completed', 'failed'].includes(activity.state))
       tray?.setToolTip(active ? `CodePulse · ${active.project || active.state}` : 'CodePulse')
+      if (hookSyncEnabled) void syncWslHooks()
     })
     monitor.start()
     const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), '.codex')
@@ -366,8 +413,10 @@ if (process.argv.includes('--activity-hook')) {
       isActivityHookInstalled(codexHome),
       isActivityHookMigrationNeeded(codexHome, expectedHelperPath)
     ]).then(([installed, migrationNeeded]) => {
+      hookSyncEnabled = installed
       monitor?.setActivityHookInstalled(installed)
-      if (migrationNeeded || (installed && !existsSync(expectedHelperPath))) void installHooks()
+      if (migrationNeeded || (installed && (!existsSync(expectedHelperPath) || !existsSync(wslHookHelperPath())))) void installHooks()
+      else if (installed) void syncWslHooks()
     })
   })
 }

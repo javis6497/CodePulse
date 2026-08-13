@@ -26,9 +26,9 @@ export class MonitorService extends EventEmitter {
   private refreshTimer?: NodeJS.Timeout
   private refreshing?: Promise<DashboardSnapshot>
 
-  constructor(activityToken?: string) {
+  constructor(activityToken?: string, activityInboxPath?: string) {
     super()
-    this.activity = new ActivityService(activityToken)
+    this.activity = new ActivityService(activityToken, activityInboxPath)
   }
 
   getActivityToken(): string {

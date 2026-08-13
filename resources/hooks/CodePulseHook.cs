@@ -12,9 +12,10 @@ internal static class CodePulseHook
     [STAThread]
     private static int Main(string[] args)
     {
+        string eventName = null;
         try
         {
-            Forward(args);
+            Forward(args, out eventName);
         }
         catch (Exception error)
         {
@@ -22,11 +23,14 @@ internal static class CodePulseHook
             if (Array.IndexOf(args, "--diagnostic") >= 0) Console.Error.WriteLine(error);
         }
 
+        WriteHookOutput(eventName);
+
         return 0;
     }
 
-    private static void Forward(string[] args)
+    private static void Forward(string[] args, out string eventName)
     {
+        eventName = null;
         string token = ArgumentValue(args, "--token");
         if (!IsToken(token)) return;
 
@@ -37,7 +41,7 @@ internal static class CodePulseHook
         Dictionary<string, object> input = serializer.Deserialize<Dictionary<string, object>>(raw);
         if (input == null) return;
 
-        string eventName = StringValue(input, "hook_event_name");
+        eventName = StringValue(input, "hook_event_name");
         string sessionId = StringValue(input, "session_id");
         if (String.IsNullOrEmpty(eventName) || String.IsNullOrEmpty(sessionId)) return;
 
@@ -79,6 +83,16 @@ internal static class CodePulseHook
         using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
         {
             // Waiting for the response guarantees that CodePulse accepted the event.
+        }
+    }
+
+    private static void WriteHookOutput(string eventName)
+    {
+        if (eventName != "Stop" && eventName != "SubagentStop") return;
+        using (StreamWriter writer = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)))
+        {
+            writer.Write("{}");
+            writer.Flush();
         }
     }
 

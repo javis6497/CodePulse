@@ -37,4 +37,24 @@ describe('installActivityHook', () => {
     expect(await readFile(join(codexHome, 'hooks.json'), 'utf8')).toBe(afterFirstInstall)
     expect((await readdir(codexHome)).filter((name) => name.startsWith('hooks.codepulse-backup-'))).toHaveLength(1)
   })
+
+  it('writes a Linux command without a Windows-only override for WSL', async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), 'codepulse-wsl-hook-'))
+    await installActivityHook({
+      codexHome,
+      executablePath: 'C:\\Users\\Example\\AppData\\Roaming\\CodePulse\\hooks\\CodePulseHook.exe',
+      token: 'b'.repeat(64),
+      runtime: 'wsl',
+      distro: 'Ubuntu-24.04',
+      wslExecutablePath: 'C:\\Users\\Example\\AppData\\Roaming\\CodePulse\\hooks\\CodePulseHook.py',
+      wslInboxPath: 'C:\\Users\\Example\\AppData\\Roaming\\CodePulse\\activity-inbox'
+    })
+
+    const document = JSON.parse(await readFile(join(codexHome, 'hooks.json'), 'utf8'))
+    const handler = document.hooks.UserPromptSubmit[0].hooks[0]
+    expect(handler.command).toContain('python3 "/mnt/c/Users/Example/AppData/Roaming/CodePulse/hooks/CodePulseHook.py"')
+    expect(handler.command).toContain('--inbox "/mnt/c/Users/Example/AppData/Roaming/CodePulse/activity-inbox"')
+    expect(handler.command).toContain('--distro "Ubuntu-24.04"')
+    expect(handler).not.toHaveProperty('commandWindows')
+  })
 })

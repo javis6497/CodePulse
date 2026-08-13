@@ -73,6 +73,8 @@ export async function installActivityHook(options: {
   token: string
   runtime?: 'windows' | 'wsl'
   distro?: string
+  wslExecutablePath?: string
+  wslInboxPath?: string
 }): Promise<HookInstallResult> {
   const configPath = join(options.codexHome, 'hooks.json')
   await mkdir(options.codexHome, { recursive: true })
@@ -89,12 +91,16 @@ export async function installActivityHook(options: {
   document.hooks ||= {}
   const runtime = options.runtime || 'windows'
   const nativeCommand = `${quote(options.executablePath)} --token ${quote(options.token)} --runtime windows`
-  const wslCommand = `${quote(toWslPath(options.executablePath))} --token ${quote(options.token)} --runtime wsl${options.distro ? ` --distro ${quote(options.distro)}` : ''}`
+  const wslExecutablePath = toWslPath(options.wslExecutablePath || options.executablePath)
+  const wslInboxPath = toWslPath(options.wslInboxPath || '')
+  const wslCommand = `python3 ${quote(wslExecutablePath)} --token ${quote(options.token)} --inbox ${quote(wslInboxPath)}${options.distro ? ` --distro ${quote(options.distro)}` : ''}`
   const command = runtime === 'wsl' ? wslCommand : nativeCommand
   for (const event of EVENTS) {
     const existing = Array.isArray(document.hooks[event]) ? document.hooks[event].filter((group) => !isCodePulseGroup(group)) : []
+    const handler: HookHandler = { type: 'command', command, statusMessage: MARKER, timeout: 3 }
+    if (runtime === 'windows') handler.commandWindows = nativeCommand
     existing.push({
-      hooks: [{ type: 'command', command, commandWindows: nativeCommand, statusMessage: MARKER, timeout: 3 }]
+      hooks: [handler]
     })
     document.hooks[event] = existing
   }

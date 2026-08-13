@@ -1,7 +1,7 @@
 {
   "name": "codepulse",
   "productName": "CodePulse",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Windows companion for Codex and Claude Code usage, quota, and activity.",
   "type": "module",
   "main": "out/main/index.js",
@@ -32,6 +32,10 @@
       {
         "from": "resources/hooks/CodePulseHook.exe",
         "to": "hooks/CodePulseHook.exe"
+      },
+      {
+        "from": "resources/hooks/CodePulseHook.py",
+        "to": "hooks/CodePulseHook.py"
       }
     ],
     "asarUnpack": [

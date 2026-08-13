@@ -166,7 +166,7 @@ export class CodexAppServerClient extends EventEmitter {
     this.child.once('error', (error) => this.emit('error', error))
 
     await this.request('initialize', {
-      clientInfo: { name: 'codepulse', title: 'CodePulse', version: '0.1.6' }
+      clientInfo: { name: 'codepulse', title: 'CodePulse', version: '0.1.7' }
     }, 45_000)
     this.notify('initialized', {})
     this.initialized = true
