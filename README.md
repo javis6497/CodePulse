@@ -101,5 +101,3 @@ src/renderer/      React user interface
 src/shared/        Shared contracts and defaults
 tests/             Vitest test suite
 ```
-
-The original design goals and architecture notes are available in [CodePulse_技术方案.md](./CodePulse_技术方案.md).
