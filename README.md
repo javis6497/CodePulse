@@ -83,5 +83,3 @@ src/renderer/      React 界面
 src/shared/        共享类型和默认值
 tests/             Vitest 测试
 ```
-
-详细目标和架构见 [CodePulse_技术方案.md](./CodePulse_技术方案.md)。
